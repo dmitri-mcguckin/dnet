@@ -22,7 +22,6 @@ X, y = iris_data()
 X = X[:,[0, 2]]
 
 # Plotting Decision Regions
-
 gs = gridspec.GridSpec(2, 2)
 fig = plt.figure(figsize=(10, 8))
 
