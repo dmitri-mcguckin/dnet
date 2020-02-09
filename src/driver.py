@@ -36,7 +36,7 @@ def preprocess(input):
     return t
 
 def main():
-    try: labels, data = retrieve_from_csv("./mnist_data/dummy_demo.csv")
+    try: labels, data = retrieve_from_csv("./mnist_data/super_dummy_demo.csv")
     except FileNotFoundError as e:
         log(Mode.ERROR, str(e))
         sys.exit(-1)
@@ -44,8 +44,7 @@ def main():
     # Preprocess the data
     labels = preprocess(labels)
     _pd = []
-    for row in data:
-        _pd.append(preprocess(row))
+    for row in data: _pd.append(preprocess(row))
     data = _pd
 
     # Validate the data
@@ -55,13 +54,13 @@ def main():
 
     log(Mode.INFO, "label-data: (" + str(len(labels)) + ", " + str(len(data)) + ") | nodes-per-row: " + str(len(data[0])))
 
-    training_model = NeuralNetwork(labels, data, 1)
+    training_model = NeuralNetwork(labels, data, 1, weight=0.1, rsoftmax=False)
 
     for i, row in enumerate(data):
-        output = training_model.feed_forward(row, 0)
-        log(Mode.INFO, "Output: " + str(output)
-                        + "\n\tTarget: " + str(labels[i]))
-
-
+        log(Mode.INFO, "Feeding row: " + str(row))
+        output = training_model.feed_forward(data[i], 0)[0]
+        target = labels[i]
+        log(Mode.INFO, "(o: " + str(output) + ", t: " + str(target) + ")\n")
+        if(output != target): training_model.back_propogate(output, target, 1)
 
 if __name__ == "__main__": main()
