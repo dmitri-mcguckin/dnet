@@ -19,7 +19,8 @@ class NeuralNetwork:
                  bias=1, # Bias for each layer
                  weight=None, # Starting weight of the NN
                  accuracy=3, # Accuracy of the output
-                 ret_type=Type.linear): # Return type of the NN
+                 ret_type=Type.linear, # Return type of the NN
+                 tolerance=0.01): # Error tolerance
         self.targets = numpy.around(targets, accuracy) # The target values for training
         self.data = [] # The training/test data
 
@@ -45,6 +46,7 @@ class NeuralNetwork:
 
         self.accuracy = accuracy
         self.ret_type = ret_type
+        self.tolerance = tolerance
 
     # Sigmoid activation function
     def activate(self, input): return 1 / (1 + numpy.exp(-1 * input))
@@ -58,19 +60,20 @@ class NeuralNetwork:
         return softmaxes
 
     def train(self):
+        MST = self.tolerance * self.tolerance # Mean square tolerance
+        self.activations = []
         for i in range(0, len(self.data)):
             output = self.feed_forward(self.data[i])[0]
             error = self.targets[i] - output
-            log(Mode.INFO, "Target: " + str(self.targets[i]) + ", Output: " + str(output) + ", MSE: " + str(error))
+            error *= error
 
-            if(numpy.absolute(error) > 0.01):
-                self.back_propogate()
-                log(Mode.DEBUG, "Post Back Propogation: " + str(self))
+            log(Mode.INFO, "Target: " + str(self.targets[i]) + ",\n\tOutput: " + str(output) + ",\n\tMSE: " + str(error) + "\n")
+
+            if(error > MST): self.back_propogate()
             else: break;
 
     # Single-data-row feed forward function
     def feed_forward(self, input):
-        self.activations = []
         self.activations.append(input.tolist())
         in_layer = input
         # Recur through the hidden layers
@@ -91,8 +94,6 @@ class NeuralNetwork:
         return output
 
     def back_propogate(self):
-        log(Mode.DEBUG, "Activation Table: " + str(self.activations))
-
         tau = []
         for o in self.activations[-1]: tau.append(o * (1 - o) * (self.targets[0] - o))
 
@@ -103,20 +104,19 @@ class NeuralNetwork:
                 delta.append(self.learning_rate * t * h)
         self.weights[1] += numpy.around(delta, self.accuracy + 1)
 
+        # Process the hidden layers
         old_tau = tau
         sum = 0
         for h in self.activations[1]: sum += h * old_tau[0]
         for h in self.activations[1]:
             tau = h * (1 - h) * sum
-        log(Mode.DEBUG, "Tau: " + str(tau))
 
-        delta = []
-        for h in self.activations[1]:
-            delta.append(self.learning_rate * tau * h)
-        self.weights[0] += delta
-
-        log(Mode.DEBUG, "Delta: " + str(delta))
-        self.activations = []
+        for l in range(0, self.layers):
+            delta = []
+            sum = 0
+            for h in self.activations[l]: sum += h * self.learning_rate * tau
+            delta.append(sum)
+            self.weights[l - 1] += delta
 
     def __str__(self):
         ret = "\nWeight Table (" + str(len(self.weights)) + "x" + str(len(self.weights[0])) + "):"

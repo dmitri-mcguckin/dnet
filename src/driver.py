@@ -36,7 +36,7 @@ def preprocess(input):
     return t
 
 def main():
-    try: targets, training_data = retrieve_from_csv("./mnist_data/mnist_train.csv")
+    try: targets, training_data = retrieve_from_csv("./mnist_data/mnist_demo.csv")
     except FileNotFoundError as e:
         log(Mode.ERROR, str(e))
         sys.exit(-1)
@@ -50,8 +50,8 @@ def main():
     # Create the neural network
     training_model = NeuralNetwork(targets,
                                    training_data,
-                                   outputs=10,
-                                   layers=1,
+                                   outputs=1,
+                                   layers=100,
                                    learning_rate=0.1,
                                    momentum=0.9,
                                    accuracy=20,
