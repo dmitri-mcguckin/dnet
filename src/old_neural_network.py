@@ -1,6 +1,5 @@
 import numpy
-
-from ftfutils import log, Mode # TODO: remove this when done
+from ftfutils import log, Mode
 
 DEBUG = False
 

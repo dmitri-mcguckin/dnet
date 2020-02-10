@@ -1,30 +1,50 @@
 import numpy
-
-from ftfutils import log, Mode # TODO: remove this when done
+from enum import Enum
+from ftfutils import log, Mode
 
 DEBUG = False
 
+class Type(Enum):
+    linear = 0
+    logistic = 1
+    softmax = 2
+
 class NeuralNetwork:
-    def __init__(self, labels, data, output_size, layers=1, width=None, learning_rate=1, momentum=0.75, bias=1, weight=None, accuracy=3, rsoftmax=False):
-        self.labels = labels # The labels (aka targets)
-        self.data = data # The input data
+    def __init__(self, targets, data,
+                 outputs=1, # Size of output layer
+                 layers=1, # Number of hidden layers (not including output)
+                 width=None, # Width of each layer
+                 learning_rate=1, # Step size for GD
+                 momentum=0.75, # Momentum for GD
+                 bias=1, # Bias for each layer
+                 weight=None, # Starting weight of the NN
+                 accuracy=3, # Accuracy of the output
+                 ret_type=Type.linear): # Return type of the NN
+        self.targets = numpy.around(targets, accuracy) # The target values for training
+        self.data = [] # The training/test data
 
-        self.output_size = output_size # The number of output nodes
-        self.activations = [] # The activation table of the last set of input data
-        self.layers = layers # The number of layers in the network
+        # Add the bias into the first column of the data matrix
+        for row in data: self.data.append(numpy.around(numpy.insert(row, 0, bias).tolist(), accuracy))
 
-        if(width is None): self.width = len(self.data) # The width of each layer
-        else: self.width = width #   - Defaults to width of input
+        self.outputs = outputs
+        self.layers = layers
 
-        self.learning_rate = learning_rate # Hyperparameter for learning rate (gradient descent)
-        self.momentum = momentum # Hyper parameter for minima (gradient descent)
-        self.bias = bias # Hyper parameter for bias
+        # Takes user value if provided otherwise defaults to
+        #   - the width of the data input
+        if(width is None): self.width = len(self.data[0])
+        else: self.width = width
 
-        if(weight is None): self.weights = numpy.random.rand(self.layers + 1, self.width + 1) - 0.5
-        else: self.weights = numpy.tile(weight, (self.layers + 1, self.width + 1))
+        self.learning_rate = learning_rate
+        self.momentum = momentum
+        self.bias = bias
 
-        self.accuracy = accuracy # Accuracy of all float values
-        self.rsoftmax = rsoftmax
+        # Takes user value if provided otherwise defaults to
+        #   - random values between -0.5 and 0.5
+        if(weight is None): self.weights = numpy.around(numpy.random.rand(self.layers + 1, self.width) - 0.5, accuracy)
+        else: self.weights = numpy.around(numpy.tile(weight, (self.layers + 1, self.width)), accuracy)
+
+        self.accuracy = accuracy
+        self.ret_type = ret_type
 
     # Sigmoid activation function
     def activate(self, input): return 1 / (1 + numpy.exp(-1 * input))
@@ -37,69 +57,72 @@ class NeuralNetwork:
         for o_i in input: softmaxes.append(numpy.around(numpy.exp(o_i) / e_o_k, self.accuracy))
         return softmaxes
 
-    # Single-row feed forward function
-    def feed_forward(self, input, layer=0):
-        # If layer is 0, we're starting a new epoch, wipe the activation table
-        if(layer == 0): self.activations = []
+    def train(self):
+        for i in range(0, len(self.data)):
+            output = self.feed_forward(self.data[i])[0]
+            error = self.targets[i] - output
+            log(Mode.INFO, "Target: " + str(self.targets[i]) + ", Output: " + str(output) + ", MSE: " + str(error))
 
-        if(DEBUG): log(Mode.DEBUG, "L" + str(layer) + " Weight Table: " + str(self.weights[layer]))
+            if(numpy.absolute(error) > 0.01):
+                self.back_propogate()
+                log(Mode.DEBUG, "Post Back Propogation: " + str(self))
+            else: break;
 
-        # If we've recured down all layers, process output layer and return
-        if(layer == self.layers):
-            output_layer = []
-            for _ in range(0, self.output_size):
-                h = self.weights[layer][0] * self.bias # Start with adding the bias to the node calculation
-                h += numpy.matmul(self.weights[layer][1:], input) # Sum the product of weights and inputs
-                output_layer.append(self.activate(h))
-            self.activations.append(output_layer)
-            if(self.rsoftmax): return self.softmax(output_layer)
-            else: return numpy.around(output_layer, self.accuracy)
+    # Single-data-row feed forward function
+    def feed_forward(self, input):
+        self.activations = []
+        self.activations.append(input.tolist())
+        in_layer = input
+        # Recur through the hidden layers
+        for l in range(0, self.layers):
+            out_layer = []
+            for n in range(0, self.width - 1):
+                out_layer.append(numpy.around(self.activate(numpy.dot(in_layer, self.weights[l])), self.accuracy))
+            in_layer = out_layer
+            in_layer = numpy.insert(in_layer, 0, self.bias)
+            self.activations.append(in_layer.tolist())
 
-        # Recur down the layers normally
-        activations = []
-        for node in range(0, self.width):
-            # Start with the product of the bias and weight
-            h = self.weights[layer][0] * self.bias # Start with adding the bias to the node calculation
-            h += self.weights[layer][2:] * input[layer] # Sum the product of weights and inputs
-            activations.append(self.activate(h))
-        self.activations.append(activations)
+        # Generate the output layer
+        output = []
+        for o in range(0, self.outputs):
+            output.append(self.activate(numpy.dot(in_layer, self.weights[self.layers])))
+        if(self.ret_type == Type.softmax): output = self.softmax(output)
+        self.activations.append(output)
+        return output
 
-        return self.feed_forward(activations, layer + 1)
+    def back_propogate(self):
+        log(Mode.DEBUG, "Activation Table: " + str(self.activations))
 
-    def back_propogate(self, layer, target=None, ptaus=None):
-        if layer < 0: return
+        tau = []
+        for o in self.activations[-1]: tau.append(o * (1 - o) * (self.targets[0] - o))
 
-        if(DEBUG): log(Mode.DEBUG, "Driving back propogation for L" + str(layer))
+        # Process the output layer
+        delta = []
+        for t in tau:
+            for h in self.activations[1]:
+                delta.append(self.learning_rate * t * h)
+        self.weights[1] += numpy.around(delta, self.accuracy + 1)
 
-        # Calculate the taus dependant on hidden or output layer
-        taus = []
-        deltas = []
-        if(target is not None and ptaus is None): # Output layer
-            for i in range(0, self.width + 1):
-                for h in self.activations[layer]:
-                    taus.append(h * (1 - h) * (target - h))
+        old_tau = tau
+        sum = 0
+        for h in self.activations[1]: sum += h * old_tau[0]
+        for h in self.activations[1]:
+            tau = h * (1 - h) * sum
+        log(Mode.DEBUG, "Tau: " + str(tau))
 
-            deltas.append(self.learning_rate * taus[0] * self.bias)
-            for i in range(0, self.width):
-                deltas.append(self.learning_rate * taus[i] * self.activations[layer - 1][i])
-            self.weights[layer] += deltas
-        elif(target is None and ptaus is not None): # Hidden layer
-            sum = self.weights[layer] * ptaus
-            for i in range(0, self.width):
-                h = self.activations[layer][i]
-                taus.append(h * (1 - h) * sum[0])
+        delta = []
+        for h in self.activations[1]:
+            delta.append(self.learning_rate * tau * h)
+        self.weights[0] += delta
 
-            deltas.append(self.learning_rate * taus[0] * self.bias)
-            for i in range(0, self.width):
-                deltas.append(self.learning_rate * taus[i] * self.bias)
-            input = []
-            input.append(self.bias)
-            input = numpy.append(input, self.data[layer])
-            deltas[1:] *= input
-            self.weights[layer] += deltas
+        log(Mode.DEBUG, "Delta: " + str(delta))
+        self.activations = []
 
-        else:
-            log(Mode.ERROR, "Invalid set of arguments for backprop at L" + str(layer))
-            return
+    def __str__(self):
+        ret = "\nWeight Table (" + str(len(self.weights)) + "x" + str(len(self.weights[0])) + "):"
+        for row in self.weights: ret += "\n\t" + str(row)
 
-        return self.back_propogate(layer - 1, ptaus=taus)
+        ret += "\n\nData Table (" + str(len(self.data)) + "x" + str(len(self.data[0])) + "):"
+        for i in range(0, self.width - 1): ret += "\nR" + str(i + 1) + ":\t" + str(self.targets[i]) +"\t?= " + str(self.data[i])
+        ret += "\n"
+        return ret
