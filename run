@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+# ./clean
+SCRIPT=src/driver.py
+python3 $SCRIPT

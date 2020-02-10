@@ -36,7 +36,7 @@ def preprocess(input):
     return t
 
 def main():
-    try: labels, data = retrieve_from_csv("./mnist_data/super_dummy_demo.csv")
+    try: labels, data = retrieve_from_csv("./mnist_data/mnist_demo.csv")
     except FileNotFoundError as e:
         log(Mode.ERROR, str(e))
         sys.exit(-1)
@@ -52,15 +52,21 @@ def main():
         log(Mode.Error, "Mismatched label-data sizes: (labels " + str(len(labels)) + ", data: " + str(len(data)) + ")")
         sys.exit(-1)
 
+    acc_error = 0.001
+    layer_size = 10
     log(Mode.INFO, "label-data: (" + str(len(labels)) + ", " + str(len(data)) + ") | nodes-per-row: " + str(len(data[0])))
-
-    training_model = NeuralNetwork(labels, data, 1, weight=0.1, rsoftmax=False)
+    training_model = NeuralNetwork(labels, data, layer_size, learning_rate=0.2, momentum=0.9, weight=0.1, rsoftmax=True)
 
     for i, row in enumerate(data):
-        log(Mode.INFO, "Feeding row: " + str(row))
-        output = training_model.feed_forward(data[i], 0)[0]
+        log(Mode.INFO, "Training on data: " + str(row))
         target = labels[i]
-        log(Mode.INFO, "(o: " + str(output) + ", t: " + str(target) + ")\n")
-        if(output != target): training_model.back_propogate(output, target, 1)
+
+        output = training_model.feed_forward(row)[0]
+        error = target - output
+        log(Mode.INFO, "(o: " + str(output) + ", t: " + str(target) + ", d: " + str(error) + ")")
+        training_model.back_propogate(layer_size, target)
+        # else: break;
+
+    log(Mode.WARN, "Training ended!")
 
 if __name__ == "__main__": main()
