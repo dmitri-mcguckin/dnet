@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-
-DIRS=$(find -name __pycache__)
-
-for dir in $DIRS; do
-  rm -rf $dir
-done

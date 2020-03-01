@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+SCRIPT=src/driver.py
+python3 $SCRIPT
