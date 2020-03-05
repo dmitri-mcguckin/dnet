@@ -1,10 +1,19 @@
 import sys, csv, numpy
 
+import matplotlib.pyplot as plt
+import scipy.stats as st
+import math
+
 def error(num, den):
     p = num / den
     if(p >= 1): p -= 1
     else: p = 1 - p
     return p
+
+def get_features(data, index):
+    res = []
+    for d in data: res.append(d[index])
+    return res
 
 def load_file(filename):
     labels = []
@@ -21,6 +30,16 @@ def load_file(filename):
     file.close()
     return labels, data
 
+def prob_density()
+
+def plot_model(title, mean, std):
+    sigma = math.sqrt(std)
+    x = numpy.linspace(mean - 3 * sigma, mean + 3 * sigma, 100)
+    # plt.set_title(title)
+    plt.xlabel("probabilities")
+    plt.plot(x, st.norm.pdf(x, mean, sigma))
+    plt.show()
+
 def main():
     # Check for debug mode
     if(len(sys.argv) == 2 and sys.argv[1] == '-d'): DEBUG = True
@@ -35,6 +54,21 @@ def main():
 
     is_spam_probs = {}
     not_spam_probs = {}
+
+    # Statistics funny buisness
+    import matplotlib.pyplot as plt
+    import scipy.stats as st
+    import math
+
+    means = []
+    stds = []
+
+    for i in range(0, len(data[0])):
+        means.append(numpy.mean(get_features(data, i)))
+        stds.append(numpy.std(get_features(data, i)))
+        plot_model("Feture #" + str(i), means[i], stds[i])
+
+    sys.exit(0)
 
     # Determine the label set
     for l in labels:
