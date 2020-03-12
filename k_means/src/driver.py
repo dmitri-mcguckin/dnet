@@ -8,7 +8,6 @@ class Point:
         self.x = x
         self.y = y
         self.k_class = k_class
-        self.radius = -1
 
     # Euclidean distance between two points
     def distance(self, p):
@@ -18,13 +17,15 @@ class Point:
         return "(" + str(self.x) + ", " + str(self.y) + ")"
 
 # Plot the data
-def plot(ax, k, data, size=2, marker=None):
+def plot(ax, k, data, size=2, marker=None, color_override=None):
     for i in range(k):
         k_data = list(filter(lambda x: x.k_class == i, data))
         arr = np.array([[p.x, p.y] for p in k_data])
         if(len(arr) > 0):
             x, y = arr.T
-            ax.scatter(x, y,c=COLOR_MAP[i], s=size, marker=marker)
+            if(color_override is not None): color = color_override
+            else: color = COLOR_MAP[i]
+            ax.scatter(x, y,c=color, s=size, marker=marker)
 
 def init_colors(k):
     res = []
@@ -100,7 +101,7 @@ def main(args):
     # Variables
     prgm_id = int(time.time())
     did_change = True
-    epoch_count = 0
+    itter_count = 0
     data = init_data(args[0])
     k = int(args[1])
     COLOR_MAP = init_colors(k)
@@ -111,21 +112,21 @@ def main(args):
     else: no_hang = False
 
     while(did_change):
-        ax.set_title("Epoch #" + str(epoch_count + 1))
+        ax.set_title("Iteration #" + str(itter_count + 1))
         did_change = classify_data(centroids, data) # Run the classification
 
         plot(ax, k, data)
-        plot(ax, k, centroids, marker="+", size=80)
+        plot(ax, k, centroids, marker="+", size=80, color_override="white")
 
         plt.pause(playback_time)
 
         update_centroids(centroids, data) # Update the centroids
-        if(epoch_count == 0): plt.gcf().savefig('imgs/' + str(prgm_id) + '_begin.png', dpi=100)
+        if(itter_count == 0): plt.gcf().savefig('imgs/' + str(prgm_id) + '_begin.png', dpi=100)
         elif(not did_change): plt.gcf().savefig('imgs/' + str(prgm_id) + '_end.png', dpi=100)
-        epoch_count += 1
+        itter_count += 1
         ax.cla()
 
-    print("Completed k-means in", epoch_count, "epochs!")
+    print("Completed k-means in", itter_count, "iterations!")
     if(not no_hang): # Show the window until the user exits
         print("Hanging untill user exit...")
         plt.show()
