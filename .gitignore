@@ -2,6 +2,9 @@
 mnist_data
 **/mnist_data
 
+imgs
+**/imgs
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

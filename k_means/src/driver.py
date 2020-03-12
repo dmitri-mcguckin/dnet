@@ -2,7 +2,6 @@ import sys, matplotlib.pyplot as plt, numpy as np, random as r, time
 from matplotlib import colors
 
 COLOR_MAP = []
-for c in colors.TABLEAU_COLORS.values(): COLOR_MAP.append(c)
 
 class Point:
     def __init__(self, x, y, k_class=-1):
@@ -26,6 +25,13 @@ def plot(ax, k, data, size=2, marker=None):
         if(len(arr) > 0):
             x, y = arr.T
             ax.scatter(x, y,c=COLOR_MAP[i], s=size, marker=marker)
+
+def init_colors(k):
+    res = []
+    if(k <= 10): table = colors.TABLEAU_COLORS
+    else: table = colors.XKCD_COLORS
+    for c in table.values(): res.append(c)
+    return res
 
 def init_centroids(k):
     res = []
@@ -86,6 +92,7 @@ def update_centroids(centroids, data):
             c.y = y
 
 def main(args):
+    global COLOR_MAP
     if(len(args) < 2):
         print("usage: run <filename> <k-clusters> <optional: time-per-epoch (seconds)>")
         sys.exit(-1)
@@ -93,12 +100,14 @@ def main(args):
     # Plot initialization
     fig, ax = plt.subplots(1, 1, constrained_layout=True)
     fig.suptitle(args[0], fontsize=12)
+    ax.set_facecolor('black')
 
     # Variables
     did_change = True
     epoch_count = 0
     data = init_data(args[0])
     k = int(args[1])
+    COLOR_MAP = init_colors(k)
     centroids = init_centroids(k)
     if(len(args) >= 3): playback_time = float(args[2])
     else: playback_time =  1.5
@@ -113,13 +122,12 @@ def main(args):
         plt.pause(playback_time)
 
         update_centroids(centroids, data) # Update the centroids
-        if(epoch_count == 0): plt.gcf().savefig('imgs/start.png', dpi=100)
-        elif(not did_change): plt.gcf().savefig('imgs/end.png', dpi=100)
+        if(epoch_count == 0): plt.gcf().savefig('imgs/' + str(int(time.time())) + '_start.png', dpi=100)
+        elif(not did_change): plt.gcf().savefig('imgs/' + str(int(time.time())) + '_end.png', dpi=100)
         epoch_count += 1
         ax.cla()
 
     print("Completed k-means in", epoch_count, "epochs!\n\tHanging untill user exit...")
-    ax.set_title("[Done]: Epoch #" + str(epoch_count + 1))
     plt.show() # Show the window until the user exits
 
 if __name__ == "__main__": main(sys.argv[1:])
