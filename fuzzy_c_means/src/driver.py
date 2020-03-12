@@ -69,6 +69,9 @@ def classify_data(centroids, data):
         new_class = centroids.index(k_class)
         if(new_class != d.k_class): did_change = True
         d.k_class = new_class
+
+        # Update the centroid's radius of influence
+        if(k_dist > k_class.radius): k_class.radius = k_dist
     return did_change
 
 def update_centroids(centroids, data):
@@ -88,8 +91,8 @@ def update_centroids(centroids, data):
 
 def main(args):
     global COLOR_MAP
-    if(len(args) < 2):
-        print("usage: run <filename> <k-clusters> <optional: time-per-epoch (seconds)> <optional: --no-hang>")
+    if(len(args) < 3):
+        print("usage: run <filename> <k-clusters> <fuzzifier> <optional: time-per-epoch (seconds)> <optional: --no-hang>")
         sys.exit(-1)
 
     # Plot initialization
@@ -103,11 +106,12 @@ def main(args):
     epoch_count = 0
     data = init_data(args[0])
     k = int(args[1])
+    fuzzifier = int(args[2])
     COLOR_MAP = init_colors(k)
     centroids = init_centroids(k)
-    if(len(args) >= 3): playback_time = float(args[2])
+    if(len(args) >= 4): playback_time = float(args[3])
     else: playback_time =  1.5
-    if(len(args) >= 4 and args[3] == "--no-hang"): no_hang = True
+    if(len(args) >= 5 and args[4] == "--no-hang"): no_hang = True
     else: no_hang = False
 
     while(did_change):
