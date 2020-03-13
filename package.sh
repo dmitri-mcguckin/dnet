@@ -2,7 +2,7 @@
 
 NAME="$1-bin"
 TAR=$NAME.tar.gz
-FILES=(run README.md data src tests)
+FILES=(run test_imgs data src)
 
 if [[ -z $NAME ]]; then
 	echo "usage: package.sh <program name>"
