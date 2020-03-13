@@ -14,25 +14,32 @@ def color_average(c1, c2):
                + str(hex(rgb[2]))[2:].rjust(2, '0')
 
 class Point:
-    def __init__(self, x, y, k):
+    def __init__(self, x, y, k, cen_i=None):
         self.x = x
         self.y = y
+        self.k = k
+        self.i = cen_i
         self.k_grades = []
-        sum = 1
-        for i in range(k):
-            g = round(r.uniform(0, sum), 2)
-            sum -= g
-            self.k_grades.append(g)
 
-    # Euclidean distance between two points
-    def distance(self, p):
-        return np.sqrt(np.square(p.x - self.x) + np.square(p.y - self.y))
+        # If the point is a centroid, initialize the grades as a mask
+        #   Else, initialize all of the grades randomly
+        if(self.i is not None):
+            for _ in range(k): self.k_grades.append(0)
+            self.k_grades[self.i] = 1.0
+        else:
+            sum = 1
+            for _ in range(k):
+                if(k == 1): g = 1.0
+                else: g = round(r.uniform(0, sum), 2)
+                sum -= g
+                self.k_grades.append(g)
 
-    def k_class(self):
-        return self.k_grades.index(max(self.k_grades))
-
-    def __str__(self):
-        return "(" + str(self.x) + ", " + str(self.y) + "): " + str(self.k_grades)
+    def distance(self, p): return np.sqrt(np.square(p.x - self.x) + np.square(p.y - self.y)) # Euclidean distance between two points
+    def k_class(self): return self.k_grades.index(max(self.k_grades)) # Get the dominant class
+    def __add__(self, p): return Point(self.x + p.x, self.y + p.y, self.k, self.i) # Add two points togeather
+    def __mul__(self, a): return Point(self.x * a, self.y * a, self.k, self.i) # Multiply a point by a scalar
+    def __truediv__(self, a): return Point(self.x / a, self.y / a, self.k, self.i) # Divide a point by a scalar
+    def __str__(self): return "(" + str(self.x) + ", " + str(self.y) + ")" # Point to string
 
 # Plot the data
 def plot(ax, k, data, size=2, marker=None, color_override=None):
@@ -55,7 +62,7 @@ def init_colors(k):
 def init_centroids(k):
     res = []
     for i in range(0, k):
-        res.append(Point(r.uniform(-4, 4), r.uniform(-4, 4), i))
+        res.append(Point(r.uniform(-4, 4), r.uniform(-4, 4), k, i))
     return res
 
 def init_data(filename, k):
@@ -69,46 +76,33 @@ def init_data(filename, k):
     file.close()
     return res
 
-def classify_data(m, centroids, data):
+def classify_data(centroids, data):
     did_change = False
-    exp = float(2 / (m - 1))
 
     for d in data:
-        # Get all the centroid distances
-        for a, i in enumerate(centroids):
-            k_dists = []
-            for j in centroids:
-                k_dists.append(np.pow(d.distance(i) / d.distance(j), exp))
-            d.k_grades[a]
-
+        # Get all the distances for the denominator
+        denom = 0
+        for c in centroids: denom += d.distance(c)
+        old_grades = d.k_grades
 
         # Check the rest
-        for c in centroids:
-            c_dist = d.distance(c)
-            if(c_dist < k_dist):
-                k_dist = c_dist
-                k_class = c
+        for i, c in enumerate(centroids): d.k_grades[i] = d.distance(c) / denom
 
-        # Assign the new classification
-        new_class = centroids.index(k_class)
-        if(new_class != d.k_class): did_change = True
-        d.k_class = new_class
+        # Determine if the grades converged
+        did_change = (old_grades == d.k_grades)
     return did_change
 
 def update_centroids(centroids, data):
     for i, c in enumerate(centroids):
-        x = 0
-        y = 0
-        c_set = list(filter(lambda x: x.k_class == c.k_class, data))
+        numer = Point(0, 0, len(centroids), i)
+        grades = []
 
-        if(len(c_set) > 0):
-            for p in c_set:
-                x += p.x
-                y += p.y
-            x /= len(c_set)
-            y /= len(c_set)
-            c.x = x
-            c.y = y
+        for d in data:
+            w = d.k_grades[i]
+            grades.append(w)
+            numer = numer + (d * w)
+        centroids[i] = numer / sum(grades)
+        print(str(numer) + "/" + str(sum(grades)))
 
 def main(args):
     global COLOR_MAP
@@ -137,11 +131,12 @@ def main(args):
 
     while(did_change):
         ax.set_title("Iteration #" + str(itter_count + 1))
-        did_change = classify_data(m, centroids, data) # Run the classification
+        did_change = classify_data(centroids, data) # Run the classification
 
         plot(ax, k, data)
         plot(ax, k, centroids, marker="+", size=80, color_override="white")
 
+        print("\n")
         plt.pause(playback_time)
 
         update_centroids(centroids, data) # Update the centroids
